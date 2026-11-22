@@ -1,0 +1,20 @@
+# Build
+.gradle/
+build/
+app/build/
+app/.cxx/
+*.apk
+*.aab
+
+# Modelos (grandes)
+models/
+*.gguf
+
+# llama.cpp (submodulo externo)
+app/src/main/cpp/llama.cpp/
+
+# Local
+local.properties
+.idea/
+.kotlin/
+*.log

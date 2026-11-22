@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.Glia" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/glia_accent</item>
+        <item name="android:colorAccent">@color/glia_accent2</item>
+        <item name="android:statusBarColor">@color/glia_bg</item>
+        <item name="android:navigationBarColor">@color/glia_bg</item>
+        <item name="android:windowBackground">@color/glia_bg</item>
+    </style>
+    <style name="Theme.Glia.Transparent" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

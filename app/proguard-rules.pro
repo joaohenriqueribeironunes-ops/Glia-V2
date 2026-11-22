@@ -1,0 +1,5 @@
+-keep class com.glia.assistant.** { *; }
+-keep class org.vosk.** { *; }
+-keep class ai.picovoice.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-keepattributes Signature, InnerClasses, EnclosingMethod
