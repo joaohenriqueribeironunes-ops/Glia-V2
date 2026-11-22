@@ -55,8 +55,8 @@ fun SettingsScreen() {
     val prefs = ctx.getSharedPreferences("glia", android.content.Context.MODE_PRIVATE)
     var modelPath by remember { mutableStateOf(prefs.getString("model_path", "") ?: "") }
     var temperature by remember { mutableFloatStateOf(prefs.getFloat("temperature", 0.7f)) }
-    var contextSize by remember { mutableIntStateOf(prefs.getInt("context_size", 2048)) }
-    var threads by remember { mutableIntStateOf(prefs.getInt("threads", 4)) }
+    var contextSize by remember { mutableIntStateOf(prefs.getInt("context_size", 512)) }
+    var threads by remember { mutableIntStateOf(prefs.getInt("threads", 8)) }
     var status by remember { mutableStateOf("") }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->

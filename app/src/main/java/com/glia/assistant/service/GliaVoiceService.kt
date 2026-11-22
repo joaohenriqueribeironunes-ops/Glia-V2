@@ -214,8 +214,8 @@ class GliaVoiceService : Service() {
             return
         }
 
-        val ctx = prefs.getInt("context_size", 2048).coerceIn(512, 8192)
-        val threads = prefs.getInt("threads", 4).coerceIn(1, 8)
+        val ctx = prefs.getInt("context_size", 512).coerceIn(512, 8192)
+        val threads = prefs.getInt("threads", 8).coerceIn(1, 8)
 
         for (file in candidates) {
             if (!file.isFile || file.length() < 1024) continue

@@ -16,7 +16,7 @@ class LlamaBridge {
     external fun nativeIsGenerating(): Boolean
     external fun nativeGetLastError(): String?
 
-    fun loadModel(path: String, contextSize: Int = 2048, threads: Int = 4): Boolean {
+    fun loadModel(path: String, contextSize: Int = 512, threads: Int = 8): Boolean {
         return nativeLoadModel(path, contextSize, threads) == 0
     }
 
