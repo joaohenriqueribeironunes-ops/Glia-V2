@@ -14,6 +14,7 @@ import com.glia.assistant.MainActivity
 import com.glia.assistant.R
 import com.glia.assistant.audio.AudioRecorder
 import com.glia.assistant.llm.LlamaBridge
+import com.glia.assistant.llm.ModelStore
 import com.glia.assistant.llm.TokenCallback
 import com.glia.assistant.stt.VoskStt
 import com.glia.assistant.tts.GliaTts
@@ -21,6 +22,7 @@ import com.glia.assistant.ui.GliaMode
 import com.glia.assistant.ui.GliaState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -48,6 +50,8 @@ class GliaVoiceService : Service() {
     private var continuous = false
     private var modelPath: String? = null
     private var recognizerReady = false
+    @Volatile private var modelReady = false
+    @Volatile private var modelLoading = false
 
     override fun onCreate() {
         super.onCreate()
@@ -64,21 +68,24 @@ class GliaVoiceService : Service() {
             recognizerReady = stt.init(voskPath)
         }
 
-        // Carrega modelo LLM se configurado
+        // Carrega modelo LLM em background (assets -> filesDir -> llama.cpp)
         val prefs = getSharedPreferences("glia", MODE_PRIVATE)
-        var mp = prefs.getString("model_path", null)
-        if (mp == null || !File(mp).exists()) {
-            val embedded = File(filesDir, "model.gguf")
-            if (embedded.exists()) {
-                mp = embedded.absolutePath
-                prefs.edit().putString("model_path", mp).apply()
+        modelLoading = true
+        scope.launch(Dispatchers.IO) {
+            val embedded = ModelStore.ensureModel(this@GliaVoiceService)
+            var mp = prefs.getString("model_path", null)
+            if (mp == null || !File(mp).exists()) {
+                mp = embedded?.absolutePath
             }
-        }
-        modelPath = mp
-        if (mp != null && File(mp).exists()) {
-            val ctx = prefs.getInt("context_size", 2048)
-            val thr = prefs.getInt("threads", 4)
-            llm.loadModel(mp, ctx, thr)
+            modelPath = mp
+            if (mp != null && File(mp).exists()) {
+                prefs.edit().putString("model_path", mp).apply()
+                val ctx = prefs.getInt("context_size", 2048)
+                val thr = prefs.getInt("threads", 4)
+                val ok = llm.loadModel(mp, ctx, thr)
+                modelReady = ok
+            }
+            modelLoading = false
         }
 
         recorder.onAmplitude = { GliaState.setAmplitude(it) }
@@ -232,10 +239,18 @@ class GliaVoiceService : Service() {
             }
         }
 
+        // Aguarda o modelo terminar de carregar (pode demorar; sem timeout)
+        if (!llm.isLoaded() && (modelLoading || modelReady)) {
+            GliaState.setResponse("Carregando modelo...")
+            while (modelLoading && scope.isActive) { delay(300) }
+        }
+
         if (llm.isLoaded()) {
-            llm.generate(prompt, callback, 0.7f)
-            // aguarda geracao terminar
-            while (llm.isGenerating()) { delay(100) }
+            val prefs = getSharedPreferences("glia", MODE_PRIVATE)
+            val temp = prefs.getFloat("temperature", 0.7f)
+            llm.generate(prompt, callback, temp)
+            // aguarda geracao terminar (sem timeout)
+            while (llm.isGenerating() && scope.isActive) { delay(100) }
             // Se nada foi falado/gerado, fallback
             if (GliaState.responseText.value.isBlank()) {
                 val fallback = "Nao consegui responder agora."

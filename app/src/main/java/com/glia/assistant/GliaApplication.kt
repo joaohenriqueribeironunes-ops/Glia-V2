@@ -17,16 +17,6 @@ class GliaApplication : Application() {
             ).apply { description = "Servico de voz da Glia em segundo plano" }
             (getSystemService(NotificationManager::class.java)).createNotificationChannel(channel)
         }
-        // Extrai modelo embutido (assets) para filesDir se necessario
-        try {
-            val outFile = java.io.File(filesDir, "model.gguf")
-            if (!outFile.exists() || outFile.length() == 0L) {
-                assets.open("models/Ternary-Bonsai-2-2B-Q2_0.gguf").use { input ->
-                    outFile.outputStream().use { out -> input.copyTo(out) }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        // A extracao do modelo embutido ocorre em background no GliaVoiceService (ModelStore).
     }
 }

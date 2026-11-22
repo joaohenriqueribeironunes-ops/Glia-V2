@@ -142,7 +142,7 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
         LOGE("Falha no decode do prompt");
     }
 
-    const int max_new = 256;
+    const int max_new = 512;
     int tokenCount = 0;
     for (int i = 0; i < max_new; i++) {
         if (g_stop.load()) break;
