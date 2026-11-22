@@ -2,7 +2,6 @@ package com.glia.assistant.llm
 
 /**
  * Ponte JNI para o motor LLM nativo (llama.cpp).
- * Em producao, compile llama.cpp e linke em CMakeLists.txt.
  */
 class LlamaBridge {
     companion object {
@@ -15,6 +14,7 @@ class LlamaBridge {
     external fun nativeGenerate(prompt: String, callback: TokenCallback, temperature: Float)
     external fun nativeStopGeneration()
     external fun nativeIsGenerating(): Boolean
+    external fun nativeGetLastError(): String?
 
     fun loadModel(path: String, contextSize: Int = 2048, threads: Int = 4): Boolean {
         return nativeLoadModel(path, contextSize, threads) == 0
@@ -27,4 +27,5 @@ class LlamaBridge {
     }
     fun stop() = nativeStopGeneration()
     fun isGenerating() = nativeIsGenerating()
+    fun lastError(): String = nativeGetLastError() ?: ""
 }

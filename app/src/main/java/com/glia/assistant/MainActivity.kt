@@ -19,13 +19,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -43,70 +45,146 @@ import com.glia.assistant.ui.SettingsActivity
 
 class MainActivity : ComponentActivity() {
 
-    private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    private val permLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        if (result[Manifest.permission.RECORD_AUDIO] == true) startGlia()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestPerms()
         setContent { MainScreen(this) }
-        // Inicia servico de voz
-        startService(Intent(this, GliaVoiceService::class.java))
+        requestPerms()
+    }
+
+    fun startGlia(action: String? = null) {
+        val intent = Intent(this, GliaVoiceService::class.java)
+        if (action != null) intent.action = action
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun requestPerms() {
         val perms = mutableListOf(Manifest.permission.RECORD_AUDIO)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) perms.add(Manifest.permission.POST_NOTIFICATIONS)
-        if (perms.any { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }) {
-            permLauncher.launch(perms.toTypedArray())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }
+        val missing = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) startGlia() else permLauncher.launch(missing.toTypedArray())
     }
 }
 
 @Composable
-fun MainScreen(activity: ComponentActivity) {
+fun MainScreen(activity: MainActivity) {
     val mode by GliaState.mode.collectAsState()
     val amp by GliaState.amplitude.collectAsState()
     val partial by GliaState.partialText.collectAsState()
     val response by GliaState.responseText.collectAsState()
+    val modelStatus by GliaState.modelStatus.collectAsState()
+    val ttsStatus by GliaState.ttsStatus.collectAsState()
+    val sttStatus by GliaState.sttStatus.collectAsState()
+    val lastError by GliaState.lastError.collectAsState()
+    val generationStats by GliaState.generationStats.collectAsState()
 
     val infinite = rememberInfiniteTransition(label = "pulse")
     val pulse by infinite.animateFloat(
-        initialValue = 0.9f, targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse), label = "pulse"
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
+        label = "pulse"
     )
 
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.fillMaxWidth().height(260.dp),
+            contentAlignment = Alignment.Center
+        ) {
             OrbView(amplitude = amp, pulse = pulse, mode = mode)
         }
         Text(
             text = when (mode) {
                 GliaMode.IDLE -> "Dormindo - diga \"Ei Glia\""
-                GliaMode.LISTENING -> "Ouvindo…"
-                GliaMode.THINKING -> "Pensando…"
-                GliaMode.SPEAKING -> "Falando…"
+                GliaMode.LISTENING -> "Ouvindo..."
+                GliaMode.THINKING -> "Pensando..."
+                GliaMode.SPEAKING -> "Falando..."
             },
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(8.dp))
-        if (partial.isNotBlank()) Text(partial, style = MaterialTheme.typography.bodySmall, color = Color(0xFF8A8AA6), textAlign = TextAlign.Center)
-        if (response.isNotBlank()) Text(response, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(16.dp))
+        if (partial.isNotBlank()) {
+            Text(
+                partial,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF8A8AA6),
+                textAlign = TextAlign.Center
+            )
+        }
+        if (response.isNotBlank()) {
+            Text(response, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+        }
+        Spacer(Modifier.height(12.dp))
+        StatusCard(modelStatus, ttsStatus, sttStatus, lastError, generationStats)
+        Spacer(Modifier.height(12.dp))
         RowButtons(activity)
     }
 }
 
 @Composable
-fun RowButtons(activity: ComponentActivity) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun StatusCard(
+    modelStatus: String,
+    ttsStatus: String,
+    sttStatus: String,
+    lastError: String,
+    generationStats: String
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text("Modelo: $modelStatus", style = MaterialTheme.typography.bodySmall)
+        Text("Voz: $ttsStatus", style = MaterialTheme.typography.bodySmall)
+        Text("Microfone: $sttStatus", style = MaterialTheme.typography.bodySmall)
+        if (generationStats.isNotBlank()) {
+            Text("Geracao: $generationStats", style = MaterialTheme.typography.bodySmall)
+        }
+        if (lastError.isNotBlank()) {
+            Text("Erro: $lastError", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF6B6B))
+        }
+    }
+}
+
+@Composable
+fun RowButtons(activity: MainActivity) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(onClick = { activity.startGlia(GliaVoiceService.ACTION_START_LISTENING) }) {
+            Text("Iniciar escuta")
+        }
+        Button(onClick = { activity.startGlia(GliaVoiceService.ACTION_TEST_TTS) }) {
+            Text("Testar voz")
+        }
+        Button(onClick = { activity.startGlia(GliaVoiceService.ACTION_TEST_LLM) }) {
+            Text("Testar modelo")
+        }
+        Button(onClick = { activity.startGlia(GliaVoiceService.ACTION_RELOAD_MODEL) }) {
+            Text("Recarregar modelo")
+        }
+        Button(onClick = { activity.startGlia(GliaVoiceService.ACTION_STOP) }) {
+            Text("Parar")
+        }
         Button(onClick = {
             activity.startActivity(Intent(activity, SettingsActivity::class.java))
-        }) { Text("Configuracoes") }
+        }) {
+            Text("Configuracoes")
+        }
     }
 }
 
@@ -123,9 +201,10 @@ fun OrbView(amplitude: Float, pulse: Float, mode: GliaMode) {
         val baseRadius = minOf(size.width, size.height) / 3
         val ampScale = 1f + (amplitude.coerceIn(0f, 1f) * 0.6f)
         val radius = baseRadius * pulse * ampScale
-        // glow
         drawCircle(
-            brush = Brush.radialGradient(listOf(colorCore.copy(alpha = 0.35f), Color.Transparent)),
+            brush = Brush.radialGradient(
+                listOf(colorCore.copy(alpha = 0.35f), Color.Transparent)
+            ),
             radius = radius * 1.6f,
             center = center
         )

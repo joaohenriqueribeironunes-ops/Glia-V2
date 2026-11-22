@@ -54,21 +54,51 @@ export ANDROID_HOME=/path/to/android-sdk
 
 APK gerado em `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Configurar o modelo LLM (Ternary Bonsai 2 2B)
+## Modelo LLM embutido (Ternary Bonsai 2 2B)
 
-Modelo recomendado: `prism-ml/Ternary-Bonsai-2-2B-gguf` (base Qwen3.5-2B, ternario, ~0.55 GB).
+O APK ja contem `app/src/main/assets/models/Ternary-Bonsai-2-2B-Q2_0.gguf`
+(546.689.504 bytes, `prism-ml/Ternary-Bonsai-2-2B-gguf`, base Qwen3.5-2B, ternario Q2_0).
+Na primeira execucao o arquivo e copiado de forma atomica para
+`filesDir/embedded-model.gguf`; copias parciais ou corrompidas sao rejeitadas.
 
 > **Importante:** a build upstream do llama.cpp (usada aqui) suporta apenas o arquivo **`Ternary-Bonsai-2-2B-Q2_0.gguf`** (release b11556+). Os arquivos PTQ1_0/PQ2_0 exigem o fork PrismML.
 
-1. Baixe (via Hugging Face CLI ou curl):
-   ```bash
-   hf download prism-ml/Ternary-Bonsai-2-2B-gguf Ternary-Bonsai-2-2B-Q2_0.gguf --local-dir .
-   ```
-   ou: `curl -L -o Ternary-Bonsai-2-2B-Q2_0.gguf https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf/resolve/main/Ternary-Bonsai-2-2B-Q2_0.gguf`
-2. Copie para o armazenamento interno do device (ex: `Download/`).
-3. Abra o app -> Configuracoes -> Importar modelo .gguf e selecione o arquivo.
-4. Parametros recomendados (ja aplicados por padrao): temperatura 0.7, top_p 0.8, top_k 20, presence_penalty 1.5, thinking desligado.
-5. (Opcional) Ajuste tamanho de contexto (default 2048; modelo suporta ate 262144).
+Para substituir o modelo:
+
+1. Abra o app -> Configuracoes -> Importar modelo .gguf.
+2. O arquivo e copiado em segundo plano para `filesDir/user-model.gguf` (com verificacao do magic `GGUF`).
+3. O servico recarrega automaticamente e mostra o status na tela inicial.
+4. Parametros (ja aplicados por padrao): temperatura 0.7, top_p 0.8, top_k 20,
+   repeat_penalty 1.1, presence 0, thinking desligado.
+5. (Opcional) Ajuste contexto (default 2048) e threads (default 4) em Configuracoes.
+
+## Diagnostico rapido
+
+A tela inicial mostra o status de **modelo**, **voz**, **microfone**, o ultimo erro e
+os tempos de geracao. Botoes disponiveis:
+
+- **Iniciar escuta**: abre o microfone sem esperar a wake word.
+- **Testar voz**: fala uma frase de teste (valida TTS).
+- **Testar modelo**: pede uma resposta curta ao modelo embutido (valida LLM).
+- **Recarregar modelo**: descarrega e carrega novamente o .gguf.
+- **Parar**: encerra o servico e libera o microfone.
+
+Logs uteis:
+
+```bash
+adb logcat -s GliaVoice GliaNative GliaTts VoskStt ModelStore AudioRecorder
+```
+
+## Testes
+
+```powershell
+# compilacao Kotlin + nativa (JNI) + APK
+.\gradlew.bat :app:assembleDebug --offline
+```
+
+O APK final fica em `app/build/outputs/apk/debug/app-debug.apk`.
+Sem device conectado, a validacao possivel e a compilacao completa e a checagem
+estatica do fluxo; com device, use os botoes de diagnostico acima.
 
 ## Wake word / STT (Vosk)
 
