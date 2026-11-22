@@ -236,6 +236,12 @@ class GliaVoiceService : Service() {
             llm.generate(prompt, callback, 0.7f)
             // aguarda geracao terminar
             while (llm.isGenerating()) { delay(100) }
+            // Se nada foi falado/gerado, fallback
+            if (GliaState.responseText.value.isBlank()) {
+                val fallback = "Nao consegui responder agora."
+                GliaState.setResponse(fallback)
+                tts.speak(fallback)
+            }
         } else {
             // Fallback sem modelo: resposta simples
             val fallback = "Entendi: $userText. (Modelo LLM nao carregado. Importe um .gguf nas configuracoes.)"

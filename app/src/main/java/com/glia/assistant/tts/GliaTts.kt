@@ -17,7 +17,10 @@ class GliaTts(context: Context) {
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val res = tts?.setLanguage(Locale("pt", "BR"))
+                var res = tts?.setLanguage(Locale("pt", "BR"))
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    res = tts?.setLanguage(Locale.getDefault())
+                }
                 ready = res != TextToSpeech.LANG_MISSING_DATA && res != TextToSpeech.LANG_NOT_SUPPORTED
                 tts?.setSpeechRate(1.05f)
                 tts?.setPitch(1.0f)
@@ -44,7 +47,7 @@ class GliaTts(context: Context) {
     private fun speakNext() {
         val next = queue.poll() ?: return
         speaking = true
-        tts?.speak(next, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
+        tts?.speak(next, TextToSpeech.QUEUE_ADD, null, "utt_${System.currentTimeMillis()}")
     }
 
     fun stop() {

@@ -143,10 +143,11 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
     }
 
     const int max_new = 256;
+    int tokenCount = 0;
     for (int i = 0; i < max_new; i++) {
         if (g_stop.load()) break;
         llama_token new_token = llama_sampler_sample(g_sampler, g_ctx, -1);
-        if (llama_vocab_is_eog(g_vocab, new_token)) break;
+        if (llama_vocab_is_eog(g_vocab, new_token)) { LOGI("EOG at %d", i); break; }
 
         // converte token em texto
         char buf[256];
@@ -159,6 +160,7 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
             piece.assign(big.data(), big.size());
         }
 
+        tokenCount++;
         // callback onToken
         {
             JNIEnv* e = nullptr;
@@ -193,6 +195,7 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
         if (attached) g_vm->DetachCurrentThread();
     }
 
+    LOGI("generate done, tokens=%d", tokenCount);
     env->DeleteGlobalRef(cbGlobal);
     g_generating.store(false);
 }
