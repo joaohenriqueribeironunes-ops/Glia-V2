@@ -324,11 +324,24 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
     std::string error;
     int tokenCount = 0;
     const int max_new = 512;
+    LOGI("generate: start prompt_len=%zu max_new=%d", promptStr.size(), max_new);
     for (int i = 0; i < max_new; i++) {
         if (g_stop.load()) break;
 
         llama_token new_token = llama_sampler_sample(sampler, g_ctx, -1);
-        if (llama_vocab_is_eog(g_vocab, new_token)) {
+        bool eog = llama_vocab_is_eog(g_vocab, new_token);
+        char tokenBuf[512];
+        int tokenN = llama_token_to_piece(g_vocab, new_token, tokenBuf, (int) sizeof(tokenBuf), 0, true);
+        std::string tokenPiece;
+        if (tokenN > 0) {
+            tokenPiece.assign(tokenBuf, (size_t) tokenN);
+        } else if (tokenN < 0) {
+            std::vector<char> big((size_t) -tokenN);
+            int tokenN2 = llama_token_to_piece(g_vocab, new_token, big.data(), (int) big.size(), 0, true);
+            if (tokenN2 > 0) tokenPiece.assign(big.data(), (size_t) tokenN2);
+        }
+        if (!tokenPiece.empty() && tokenPiece == "<|im_end|>") eog = true;
+        if (eog) {
             LOGI("EOG em %d tokens", i);
             break;
         }
@@ -361,6 +374,7 @@ Java_com_glia_assistant_llm_LlamaBridge_nativeGenerate(JNIEnv* env, jobject thiz
     }
 
     llama_sampler_free(sampler);
+    LOGI("generate: loop ended tokens=%d error=%s", tokenCount, error.c_str());
 
     JNIEnv* e = nullptr;
     bool attached = false;

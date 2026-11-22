@@ -44,6 +44,7 @@ import com.glia.assistant.ui.GliaState
 import com.glia.assistant.ui.SettingsActivity
 
 class MainActivity : ComponentActivity() {
+    companion object { private const val EXTRA_ACTION = "glia_action" }
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -54,7 +55,28 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MainScreen(this) }
-        requestPerms()
+        val action = intent?.getStringExtra(EXTRA_ACTION)
+        if (action != null) {
+            startGlia(normalizeAction(action))
+        } else {
+            requestPerms()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val action = intent.getStringExtra(EXTRA_ACTION)
+        if (action != null) startGlia(normalizeAction(action))
+    }
+
+    private fun normalizeAction(raw: String): String = when (raw) {
+        "START_LISTENING" -> GliaVoiceService.ACTION_START_LISTENING
+        "STOP" -> GliaVoiceService.ACTION_STOP
+        "TEST_TTS" -> GliaVoiceService.ACTION_TEST_TTS
+        "TEST_LLM" -> GliaVoiceService.ACTION_TEST_LLM
+        "RELOAD_MODEL" -> GliaVoiceService.ACTION_RELOAD_MODEL
+        else -> raw
     }
 
     fun startGlia(action: String? = null) {
